@@ -402,22 +402,20 @@ const DocumentPage: React.FC = () => {
                       {/* Cursor line */}
                       <div className={`w-0.5 h-6 bg-gradient-to-b ${cursorColor} animate-pulse rounded-full shadow-sm`}></div>
                       
-                      {/* Username label - FIXED: Always show username */}
+                      {/* Username label - BELOW the cursor */}
                       <div 
-                        className={`absolute -top-7 left-0 bg-gradient-to-r ${cursorColor} text-white text-xs font-medium px-2 py-1 rounded-md whitespace-nowrap shadow-lg border border-white/20`}
+                        className={`absolute top-7 left-0 bg-gradient-to-r ${cursorColor} text-white text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap shadow-xl border-2 border-white`}
                         style={{
                           transform: 'translateX(-50%)',
-                          fontSize: '11px',
-                          maxWidth: '120px',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis'
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          zIndex: 999,
+                          minWidth: '60px',
+                          textAlign: 'center'
                         }}
                       >
-                        {cursor.username || 'Anonymous'}
+                        {cursor.username || 'User'}
                       </div>
-                      
-                      {/* Small dot indicator */}
-                      <div className={`absolute -top-1 -left-1 w-2 h-2 bg-gradient-to-r ${cursorColor} rounded-full border border-white shadow-sm`}></div>
                     </div>
                   );
                 })}
