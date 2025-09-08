@@ -4,7 +4,21 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
-import { createClient as createRedisClient } from 'redis';
+import { 
+  initRedis,
+  addUserToDocument,
+  removeUserFromDocument,
+  getDocumentActiveUsers,
+  getDocumentActiveCount,
+  updateUserCursor,
+  removeUserCursor,
+  getDocumentCursors,
+  cacheDocument,
+  getCachedDocument,
+  invalidateDocumentCache,
+  publishDocumentChange,
+  publishCursorUpdate
+} from './utils/redis.js';
 
 dotenv.config();
 
@@ -26,25 +40,8 @@ const supabase = createClient(
 );
 
 // Initialize Redis
-const redis = createRedisClient({
-  url: 'redis://127.0.0.1:6379'
-});
-
-redis.on('error', (err) => {
-  console.log('Redis Client Error:', err);
-});
-
-redis.on('connect', () => {
-  console.log('✅ Redis connected successfully');
-});
-
-// Connect to Redis
 (async () => {
-  try {
-    await redis.connect();
-  } catch (error) {
-    console.log('Redis connection failed:', error.message);
-  }
+  await initRedis();
 })();
 
 // Middleware
@@ -152,7 +149,18 @@ app.get('/api/documents', async (req, res) => {
       throw error;
     }
 
-    res.json({ documents: documents || [] });
+    // Add active participant count from Redis
+    const documentsWithParticipants = await Promise.all(
+      (documents || []).map(async (doc) => {
+        const activeCount = await getDocumentActiveCount(doc.id);
+        return {
+          ...doc,
+          active_participants: activeCount
+        };
+      })
+    );
+
+    res.json({ documents: documentsWithParticipants });
   } catch (error) {
     console.error('Get documents error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -197,21 +205,35 @@ app.get('/api/documents/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Get document
-    const { data: document, error: docError } = await supabase
-      .from('documents')
-      .select('*')
-      .eq('id', id)
-      .single();
+    // Try to get from cache first
+    let cachedDoc = await getCachedDocument(id);
+    let document;
 
-    if (docError) {
-      if (docError.code === 'PGRST116') {
-        return res.status(404).json({ error: 'Document not found' });
+    if (cachedDoc && (Date.now() - cachedDoc.cachedAt < 300000)) { // 5 minutes cache
+      document = cachedDoc;
+      console.log('Document served from cache');
+    } else {
+      // Get document from database
+      const { data: docData, error: docError } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (docError) {
+        if (docError.code === 'PGRST116') {
+          return res.status(404).json({ error: 'Document not found' });
+        }
+        throw docError;
       }
-      throw docError;
+
+      document = docData;
+      
+      // Cache the document
+      await cacheDocument(id, document);
     }
 
-    // Get chat messages for this document
+    // Get chat messages for this document (not cached for real-time)
     const { data: messages, error: msgError } = await supabase
       .from('chat_messages')
       .select(`
@@ -257,6 +279,9 @@ app.put('/api/documents/:id', async (req, res) => {
       throw error;
     }
 
+    // Invalidate document cache since content changed
+    await invalidateDocumentCache(id);
+
     res.json({ document });
   } catch (error) {
     console.error('Update document error:', error);
@@ -265,9 +290,6 @@ app.put('/api/documents/:id', async (req, res) => {
 });
 
 // Socket.IO handlers
-const documentRooms = new Map();
-const userCursors = new Map();
-
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`);
 
@@ -295,15 +317,31 @@ io.on('connection', (socket) => {
       return;
     }
 
+    // Leave previous document rooms if any
+    const rooms = Array.from(socket.rooms);
+    const docRooms = rooms.filter(room => room.startsWith('doc:'));
+    for (const room of docRooms) {
+      socket.leave(room);
+      const oldDocId = room.substring(4);
+      await removeUserFromDocument(oldDocId, socket.userId);
+      await removeUserCursor(oldDocId, socket.userId);
+      
+      // Notify others in previous room that user left
+      socket.to(room).emit('user:left', {
+        userId: socket.userId,
+        username: socket.username
+      });
+    }
+
     const roomName = `doc:${documentId}`;
     socket.join(roomName);
 
-    // Track users in document
-    if (!documentRooms.has(documentId)) {
-      documentRooms.set(documentId, new Set());
-      userCursors.set(documentId, new Map());
-    }
-    documentRooms.get(documentId).add(socket.userId);
+    // Add user to document presence in Redis
+    await addUserToDocument(documentId, socket.userId, socket.username);
+
+    // Get current active users and cursors
+    const activeUsers = await getDocumentActiveUsers(documentId);
+    const cursors = await getDocumentCursors(documentId);
 
     // Notify others that user joined
     socket.to(roomName).emit('user:joined', {
@@ -311,22 +349,61 @@ io.on('connection', (socket) => {
       username: socket.username
     });
 
+    // Send current presence to new user
+    socket.emit('presence:update', {
+      users: activeUsers,
+      cursors: cursors
+    });
+
     console.log(`User ${socket.username} joined document ${documentId}`);
   });
 
   // Handle document content changes
-  socket.on('document:change', (data) => {
+  socket.on('document:change', async (data) => {
     if (!socket.userId) return;
 
     const roomName = `doc:${data.documentId}`;
     
-    // Broadcast to others in the room
-    socket.to(roomName).emit('document:changed', {
+    const changeData = {
       content: data.content,
       userId: socket.userId,
       username: socket.username,
       timestamp: new Date().toISOString()
-    });
+    };
+    
+    // Broadcast to others in the room
+    socket.to(roomName).emit('document:changed', changeData);
+    
+    // Publish change to Redis for multi-node scaling
+    await publishDocumentChange(data.documentId, changeData);
+    
+    // Invalidate document cache
+    await invalidateDocumentCache(data.documentId);
+  });
+
+  // Handle cursor position updates
+  socket.on('cursor:update', async (data) => {
+    if (!socket.userId || !socket.username) return;
+
+    const { documentId, position, selection } = data;
+    const roomName = `doc:${documentId}`;
+    
+    const cursorData = {
+      userId: socket.userId,
+      username: socket.username,
+      position: position,
+      selection: selection,
+      timestamp: Date.now()
+    };
+
+    // Update cursor in Redis
+    await updateUserCursor(documentId, socket.userId, cursorData);
+
+    // Broadcast cursor position to others
+    socket.to(roomName).emit('cursor:updated', cursorData);
+    
+    // Publish cursor update for multi-node scaling
+    await publishCursorUpdate(documentId, cursorData);
   });
 
   // Handle chat messages
@@ -365,6 +442,24 @@ io.on('connection', (socket) => {
     console.log(`User disconnected: ${socket.id}`);
 
     if (socket.userId) {
+      // Remove from all document rooms and clean up presence
+      const rooms = Array.from(socket.rooms);
+      const docRooms = rooms.filter(room => room.startsWith('doc:'));
+      
+      for (const room of docRooms) {
+        const documentId = room.substring(4);
+        
+        // Remove user from document presence and cursors in Redis
+        await removeUserFromDocument(documentId, socket.userId);
+        await removeUserCursor(documentId, socket.userId);
+
+        // Notify others that user left
+        socket.to(room).emit('user:left', {
+          userId: socket.userId,
+          username: socket.username
+        });
+      }
+
       // Update user as inactive in database
       await supabase
         .from('users')
