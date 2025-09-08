@@ -11,7 +11,11 @@ export const initRedis = async () => {
   });
 
   redisClient.on('error', (err) => {
-    console.log('Redis Client Error:', err);
+    // Only log Redis errors once every 30 seconds to avoid spam
+    if (!global.lastRedisErrorLog || Date.now() - global.lastRedisErrorLog > 30000) {
+      console.log('Redis Client Error:', err.message);
+      global.lastRedisErrorLog = Date.now();
+    }
   });
 
   redisClient.on('connect', () => {
