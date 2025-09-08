@@ -4,6 +4,7 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
+import { createClient as createRedisClient } from 'redis';
 
 dotenv.config();
 
@@ -23,6 +24,28 @@ const supabase = createClient(
   process.env.SUPABASE_URL || '',
   process.env.SUPABASE_ANON_KEY || ''
 );
+
+// Initialize Redis
+const redis = createRedisClient({
+  url: 'redis://127.0.0.1:6379'
+});
+
+redis.on('error', (err) => {
+  console.log('Redis Client Error:', err);
+});
+
+redis.on('connect', () => {
+  console.log('✅ Redis connected successfully');
+});
+
+// Connect to Redis
+(async () => {
+  try {
+    await redis.connect();
+  } catch (error) {
+    console.log('Redis connection failed:', error.message);
+  }
+})();
 
 // Middleware
 app.use(cors());
