@@ -24,10 +24,10 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   useEffect(() => {
     if (user) {
-      // Get the domain from environment or use localhost for development
+      // In Replit environment, use the proxy instead of direct backend connection
       const serverUrl = window.location.hostname === 'localhost' 
         ? 'http://localhost:3001'
-        : `http://${window.location.hostname}:3001`;
+        : window.location.origin;
       
       const socketInstance = io(serverUrl);
 

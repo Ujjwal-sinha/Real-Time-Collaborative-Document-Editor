@@ -93,6 +93,30 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+app.post('/api/auth/logout', async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'UserId is required' });
+    }
+
+    // Set user as inactive
+    await supabase
+      .from('users')
+      .update({
+        is_active: false,
+        last_seen: new Date().toISOString()
+      })
+      .eq('id', userId);
+
+    res.json({ message: 'Logout successful' });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Simple document routes
 app.get('/api/documents', async (req, res) => {
   try {
