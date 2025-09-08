@@ -12,7 +12,6 @@ import {
   Send,
   X,
   FileText,
-  Eye,
   EyeOff
 } from 'lucide-react';
 
@@ -360,30 +359,65 @@ const DocumentPage: React.FC = () => {
                 {Object.values(cursors).map((cursor: any) => {
                   if (!cursor || cursor.userId === user?.id) return null;
                   
-                  // Calculate cursor position (simplified)
-                  const lines = content.substring(0, cursor.position).split('\n');
+                  // Calculate cursor position (improved calculation)
+                  const textarea = contentRef.current;
+                  if (!textarea) return null;
+                  
+                  const lines = content.substring(0, cursor.position || 0).split('\n');
                   const lineNumber = lines.length - 1;
-                  const columnNumber = lines[lines.length - 1].length;
+                  const columnNumber = lines[lines.length - 1]?.length || 0;
                   
-                  const lineHeight = 27; // Approximate line height for the new font
-                  const charWidth = 9; // Approximate character width
+                  // Get computed styles for accurate positioning
+                  const computedStyle = window.getComputedStyle(textarea);
+                  const lineHeight = parseFloat(computedStyle.lineHeight) || 27;
+                  const fontSize = parseFloat(computedStyle.fontSize) || 16;
+                  const charWidth = fontSize * 0.6; // Approximate character width
                   
-                  const top = lineNumber * lineHeight;
-                  const left = columnNumber * charWidth;
+                  const top = lineNumber * lineHeight + 4; // Add small offset
+                  const left = columnNumber * charWidth + 2; // Add small offset
+                  
+                  // Generate a consistent color for each user
+                  const userColorIndex = cursor.userId ? 
+                    Math.abs(cursor.userId.split('').reduce((a: any, b: string) => a + b.charCodeAt(0), 0)) % 6 : 0;
+                  const colors = [
+                    'from-blue-500 to-blue-600',
+                    'from-green-500 to-green-600', 
+                    'from-purple-500 to-purple-600',
+                    'from-pink-500 to-pink-600',
+                    'from-yellow-500 to-yellow-600',
+                    'from-red-500 to-red-600'
+                  ];
+                  const cursorColor = colors[userColorIndex];
                   
                   return (
                     <div
                       key={cursor.userId}
-                      className="absolute"
+                      className="absolute transform transition-all duration-100"
                       style={{
-                        top: `${top}px`,
-                        left: `${left}px`,
+                        top: `${Math.max(0, top)}px`,
+                        left: `${Math.max(0, left)}px`,
+                        zIndex: 25
                       }}
                     >
-                      <div className="w-0.5 h-6 bg-gradient-to-b from-indigo-500 to-purple-600 animate-pulse rounded-full"></div>
-                      <div className="absolute -top-8 left-0 bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-xs px-2 py-1 rounded-md whitespace-nowrap shadow-lg">
-                        {cursor.username}
+                      {/* Cursor line */}
+                      <div className={`w-0.5 h-6 bg-gradient-to-b ${cursorColor} animate-pulse rounded-full shadow-sm`}></div>
+                      
+                      {/* Username label - FIXED: Always show username */}
+                      <div 
+                        className={`absolute -top-7 left-0 bg-gradient-to-r ${cursorColor} text-white text-xs font-medium px-2 py-1 rounded-md whitespace-nowrap shadow-lg border border-white/20`}
+                        style={{
+                          transform: 'translateX(-50%)',
+                          fontSize: '11px',
+                          maxWidth: '120px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis'
+                        }}
+                      >
+                        {cursor.username || 'Anonymous'}
                       </div>
+                      
+                      {/* Small dot indicator */}
+                      <div className={`absolute -top-1 -left-1 w-2 h-2 bg-gradient-to-r ${cursorColor} rounded-full border border-white shadow-sm`}></div>
                     </div>
                   );
                 })}
