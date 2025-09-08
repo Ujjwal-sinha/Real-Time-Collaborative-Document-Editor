@@ -2,6 +2,19 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
+import { 
+  ArrowLeft, 
+  MessageCircle, 
+  Users, 
+  Save, 
+  Wifi, 
+  WifiOff, 
+  Send,
+  X,
+  FileText,
+  Eye,
+  EyeOff
+} from 'lucide-react';
 
 interface Message {
   id: string;
@@ -198,70 +211,138 @@ const DocumentPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-xl">Loading document...</div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="loading-spinner mx-auto mb-4"></div>
+          <p className="text-white text-lg">Loading document...</p>
+        </div>
       </div>
     );
   }
 
   if (!document) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-xl text-red-600">Document not found</div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <FileText className="w-16 h-16 text-white/60 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-white mb-2">Document not found</h2>
+          <p className="text-white/80 mb-6">The document you're looking for doesn't exist or has been deleted.</p>
+          <button
+            onClick={() => navigate('/home')}
+            className="btn-primary"
+          >
+            <ArrowLeft className="w-5 h-5 mr-2" />
+            Back to Documents
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
+    <div className="min-h-screen flex flex-col">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-full mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => navigate('/home')}
-              className="text-blue-600 hover:text-blue-800"
-            >
-              ← Back to Documents
-            </button>
-            <h1 className="text-xl font-semibold">{document.title}</h1>
-          </div>
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-              <span className="text-sm text-gray-600">
-                {isConnected ? 'Connected' : 'Disconnected'}
-              </span>
+      <header className="bg-white/10 backdrop-blur-md border-b border-white/20">
+        <div className="max-w-full mx-auto px-4 sm:px-6 py-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => navigate('/home')}
+                className="flex items-center space-x-2 text-white/80 hover:text-white transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5" />
+                <span>Back</span>
+              </button>
+              <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <FileText className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-white truncate max-w-xs sm:max-w-md">
+                  {document.title}
+                </h1>
+                <p className="text-sm text-white/60">Collaborative Document</p>
+              </div>
             </div>
-            <button
-              onClick={() => setShowChat(!showChat)}
-              className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-md"
-            >
-              {showChat ? 'Hide Chat' : 'Show Chat'}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 flex">
-        {/* Editor */}
-        <div className={`${showChat ? 'flex-1' : 'w-full'} p-6`}>
-          <div className="bg-white rounded-lg shadow-md h-full">
-            <div className="p-4 border-b">
-              <h2 className="font-medium">Document Editor</h2>
+            
+            <div className="flex items-center space-x-4">
+              {/* Connection Status */}
+              <div className="flex items-center space-x-2">
+                {isConnected ? (
+                  <>
+                    <Wifi className="w-4 h-4 text-green-400" />
+                    <span className="text-sm text-green-400">Connected</span>
+                  </>
+                ) : (
+                  <>
+                    <WifiOff className="w-4 h-4 text-red-400" />
+                    <span className="text-sm text-red-400">Disconnected</span>
+                  </>
+                )}
+              </div>
+              
+              {/* Active Users */}
               {activeUsers.length > 0 && (
-                <div className="mt-2 flex items-center space-x-2">
-                  <span className="text-sm text-gray-600">Active users:</span>
-                  {activeUsers.map((user, index) => (
-                    <span key={user.id || index} className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                      {user.username}
-                    </span>
-                  ))}
+                <div className="flex items-center space-x-2">
+                  <Users className="w-4 h-4 text-white/60" />
+                  <span className="text-sm text-white/80">{activeUsers.length}</span>
                 </div>
               )}
+              
+              {/* Chat Toggle */}
+              <button
+                onClick={() => setShowChat(!showChat)}
+                className="flex items-center space-x-2 px-3 py-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors"
+              >
+                {showChat ? (
+                  <>
+                    <EyeOff className="w-4 h-4 text-white" />
+                    <span className="hidden sm:inline text-white text-sm">Hide Chat</span>
+                  </>
+                ) : (
+                  <>
+                    <MessageCircle className="w-4 h-4 text-white" />
+                    <span className="hidden sm:inline text-white text-sm">Show Chat</span>
+                  </>
+                )}
+              </button>
             </div>
-            <div className="relative h-full">
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Editor */}
+        <div className={`${showChat ? 'flex-1' : 'w-full'} flex flex-col`}>
+          <div className="flex-1 m-4 card-glass rounded-2xl overflow-hidden">
+            {/* Editor Header */}
+            <div className="p-4 border-b border-gray-200 bg-white/50">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="font-semibold text-gray-900 flex items-center space-x-2">
+                    <FileText className="w-5 h-5" />
+                    <span>Document Editor</span>
+                  </h2>
+                  {activeUsers.length > 0 && (
+                    <div className="mt-2 flex items-center space-x-2 flex-wrap">
+                      <span className="text-sm text-gray-600">Active users:</span>
+                      {activeUsers.map((user, index) => (
+                        <span key={user.id || index} className="text-xs bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-3 py-1 rounded-full">
+                          {user.username}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Save className="w-4 h-4 text-gray-400" />
+                  <span className="text-xs text-gray-500">Auto-saved</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Editor Content */}
+            <div className="relative flex-1 overflow-hidden">
               <textarea
                 ref={contentRef}
                 value={content}
@@ -269,12 +350,13 @@ const DocumentPage: React.FC = () => {
                 onSelect={handleCursorChange}
                 onKeyUp={handleCursorChange}
                 onClick={handleCursorChange}
-                className="w-full h-full p-4 border-none outline-none resize-none font-mono text-sm relative z-10"
+                className="w-full h-full p-6 border-none outline-none resize-none bg-transparent relative z-10 text-gray-900 leading-relaxed"
                 placeholder="Start writing your document..."
+                style={{ fontFamily: 'Inter, system-ui, sans-serif', fontSize: '16px', lineHeight: '1.7' }}
               />
               
               {/* Live Cursors Display */}
-              <div className="absolute inset-0 p-4 pointer-events-none z-20">
+              <div className="absolute inset-0 p-6 pointer-events-none z-20">
                 {Object.values(cursors).map((cursor: any) => {
                   if (!cursor || cursor.userId === user?.id) return null;
                   
@@ -283,8 +365,8 @@ const DocumentPage: React.FC = () => {
                   const lineNumber = lines.length - 1;
                   const columnNumber = lines[lines.length - 1].length;
                   
-                  const lineHeight = 20; // Approximate line height
-                  const charWidth = 7; // Approximate character width for monospace
+                  const lineHeight = 27; // Approximate line height for the new font
+                  const charWidth = 9; // Approximate character width
                   
                   const top = lineNumber * lineHeight;
                   const left = columnNumber * charWidth;
@@ -298,8 +380,8 @@ const DocumentPage: React.FC = () => {
                         left: `${left}px`,
                       }}
                     >
-                      <div className="w-0.5 h-5 bg-blue-500 animate-pulse"></div>
-                      <div className="absolute -top-6 left-0 bg-blue-500 text-white text-xs px-1 rounded whitespace-nowrap">
+                      <div className="w-0.5 h-6 bg-gradient-to-b from-indigo-500 to-purple-600 animate-pulse rounded-full"></div>
+                      <div className="absolute -top-8 left-0 bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-xs px-2 py-1 rounded-md whitespace-nowrap shadow-lg">
                         {cursor.username}
                       </div>
                     </div>
@@ -312,40 +394,80 @@ const DocumentPage: React.FC = () => {
 
         {/* Chat Panel */}
         {showChat && (
-          <div className="w-80 bg-white border-l shadow-sm flex flex-col">
-            <div className="p-4 border-b">
-              <h3 className="font-medium">Chat</h3>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {messages.map((msg, index) => (
-                <div key={msg.id || index} className="text-sm">
-                  <div className="font-medium text-gray-800">{msg.user.username}</div>
-                  <div className="text-gray-600">{msg.message}</div>
-                  <div className="text-xs text-gray-400 mt-1">
-                    {new Date(msg.created_at).toLocaleTimeString()}
-                  </div>
+          <div className="w-80 lg:w-96 flex flex-col">
+            <div className="m-4 mr-0 card-glass rounded-2xl flex flex-col h-full overflow-hidden">
+              {/* Chat Header */}
+              <div className="p-4 border-b border-gray-200 bg-white/50">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-gray-900 flex items-center space-x-2">
+                    <MessageCircle className="w-5 h-5" />
+                    <span>Team Chat</span>
+                  </h3>
+                  <button
+                    onClick={() => setShowChat(false)}
+                    className="p-1 hover:bg-gray-200 rounded-lg transition-colors"
+                  >
+                    <X className="w-4 h-4 text-gray-500" />
+                  </button>
                 </div>
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-            <form onSubmit={sendMessage} className="p-4 border-t">
-              <div className="flex space-x-2">
-                <input
-                  type="text"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type a message..."
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <button
-                  type="submit"
-                  disabled={!newMessage.trim()}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 disabled:opacity-50"
-                >
-                  Send
-                </button>
+                {messages.length > 0 && (
+                  <p className="text-xs text-gray-500 mt-1">{messages.length} messages</p>
+                )}
               </div>
-            </form>
+              
+              {/* Messages */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-white/30 to-white/10">
+                {messages.length === 0 ? (
+                  <div className="text-center py-8">
+                    <MessageCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                    <p className="text-gray-500 text-sm">No messages yet</p>
+                    <p className="text-gray-400 text-xs">Start a conversation with your team</p>
+                  </div>
+                ) : (
+                  messages.map((msg, index) => (
+                    <div key={msg.id || index} className="group">
+                      <div className="flex items-start space-x-3">
+                        <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                          <span className="text-white text-xs font-medium">
+                            {msg.user.username.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2">
+                            <span className="font-medium text-gray-900 text-sm">{msg.user.username}</span>
+                            <span className="text-xs text-gray-500">
+                              {new Date(msg.created_at).toLocaleTimeString()}
+                            </span>
+                          </div>
+                          <div className="mt-1 text-sm text-gray-700 break-words">{msg.message}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+              
+              {/* Message Input */}
+              <form onSubmit={sendMessage} className="p-4 border-t border-gray-200 bg-white/50">
+                <div className="flex space-x-3">
+                  <input
+                    type="text"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="Type a message..."
+                    className="flex-1 px-4 py-2 bg-white/70 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!newMessage.trim()}
+                    className="p-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl hover:from-indigo-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
       </div>
