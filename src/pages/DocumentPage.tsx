@@ -29,6 +29,7 @@ const DocumentPage: React.FC = () => {
   const [activeUsers, setActiveUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showChat, setShowChat] = useState(true);
+  const [cursors, setCursors] = useState<any>({});
   
   const contentRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -70,7 +71,28 @@ const DocumentPage: React.FC = () => {
       });
 
       socket.on('user:left', (userData) => {
-        setActiveUsers(prev => prev.filter(u => u.id !== userData.userId));
+        setActiveUsers((prev: any[]) => prev.filter(u => u.id !== userData.userId));
+        setCursors((prev: any) => {
+          const newCursors = { ...prev };
+          delete newCursors[userData.userId];
+          return newCursors;
+        });
+      });
+
+      // Listen for cursor updates
+      socket.on('cursor:updated', (cursorData) => {
+        if (cursorData.userId !== user?.id) {
+          setCursors((prev: any) => ({
+            ...prev,
+            [cursorData.userId]: cursorData
+          }));
+        }
+      });
+
+      // Listen for presence updates (includes cursors)
+      socket.on('presence:update', (data) => {
+        setActiveUsers(data.users || []);
+        setCursors(data.cursors || {});
       });
 
       return () => {
@@ -78,6 +100,8 @@ const DocumentPage: React.FC = () => {
         socket.off('chat:new_message');
         socket.off('user:joined');
         socket.off('user:left');
+        socket.off('cursor:updated');
+        socket.off('presence:update');
       };
     }
   }, [socket, id, isConnected, user]);
@@ -119,6 +143,24 @@ const DocumentPage: React.FC = () => {
 
     // Debounced save to backend
     saveContent(newContent);
+  };
+
+  const handleCursorChange = () => {
+    if (!contentRef.current || !socket || !id || !user) return;
+
+    const textarea = contentRef.current;
+    const position = textarea.selectionStart;
+    const selection = {
+      start: textarea.selectionStart,
+      end: textarea.selectionEnd
+    };
+
+    // Emit cursor position to other users
+    socket.emit('cursor:update', {
+      documentId: id,
+      position,
+      selection
+    });
   };
 
   const saveContent = useRef(
@@ -219,13 +261,52 @@ const DocumentPage: React.FC = () => {
                 </div>
               )}
             </div>
-            <textarea
-              ref={contentRef}
-              value={content}
-              onChange={handleContentChange}
-              className="w-full h-full p-4 border-none outline-none resize-none font-mono text-sm"
-              placeholder="Start writing your document..."
-            />
+            <div className="relative h-full">
+              <textarea
+                ref={contentRef}
+                value={content}
+                onChange={handleContentChange}
+                onSelect={handleCursorChange}
+                onKeyUp={handleCursorChange}
+                onClick={handleCursorChange}
+                className="w-full h-full p-4 border-none outline-none resize-none font-mono text-sm relative z-10"
+                placeholder="Start writing your document..."
+              />
+              
+              {/* Live Cursors Display */}
+              <div className="absolute inset-0 p-4 pointer-events-none z-20">
+                {Object.values(cursors).map((cursor: any) => {
+                  if (!cursor || cursor.userId === user?.id) return null;
+                  
+                  // Calculate cursor position (simplified)
+                  const lines = content.substring(0, cursor.position).split('\n');
+                  const lineNumber = lines.length - 1;
+                  const columnNumber = lines[lines.length - 1].length;
+                  
+                  const lineHeight = 20; // Approximate line height
+                  const charWidth = 7; // Approximate character width for monospace
+                  
+                  const top = lineNumber * lineHeight;
+                  const left = columnNumber * charWidth;
+                  
+                  return (
+                    <div
+                      key={cursor.userId}
+                      className="absolute"
+                      style={{
+                        top: `${top}px`,
+                        left: `${left}px`,
+                      }}
+                    >
+                      <div className="w-0.5 h-5 bg-blue-500 animate-pulse"></div>
+                      <div className="absolute -top-6 left-0 bg-blue-500 text-white text-xs px-1 rounded whitespace-nowrap">
+                        {cursor.username}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
 
