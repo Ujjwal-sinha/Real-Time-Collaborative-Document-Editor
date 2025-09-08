@@ -79,7 +79,11 @@ const DocumentPage: React.FC = () => {
 
       // Listen for user presence updates
       socket.on('user:joined', (userData) => {
-        setActiveUsers(prev => [...prev.filter(u => u.id !== userData.userId), userData]);
+        setActiveUsers(prev => [...prev.filter(u => u.id !== userData.userId), {
+          id: userData.userId,
+          username: userData.username,
+          ...userData
+        }]);
       });
 
       socket.on('user:left', (userData) => {
@@ -326,8 +330,8 @@ const DocumentPage: React.FC = () => {
                     <div className="mt-2 flex items-center space-x-2 flex-wrap">
                       <span className="text-sm text-gray-600">Active users:</span>
                       {activeUsers.map((user, index) => (
-                        <span key={user.id || index} className="text-xs bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-3 py-1 rounded-full">
-                          {user.username}
+                        <span key={user.id || index} className="text-xs bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-3 py-1 rounded-full font-medium">
+                          {user.username || `User ${index + 1}`}
                         </span>
                       ))}
                     </div>
@@ -349,9 +353,14 @@ const DocumentPage: React.FC = () => {
                 onSelect={handleCursorChange}
                 onKeyUp={handleCursorChange}
                 onClick={handleCursorChange}
-                className="w-full h-full p-6 border-none outline-none resize-none bg-transparent relative z-10 text-gray-900 leading-relaxed"
-                placeholder="Start writing your document..."
-                style={{ fontFamily: 'Inter, system-ui, sans-serif', fontSize: '16px', lineHeight: '1.7' }}
+                className="w-full h-full p-6 border-none outline-none resize-none bg-transparent relative z-10 text-gray-900 leading-relaxed focus:ring-0"
+                placeholder="Start writing your document... Click here to begin typing."
+                style={{ 
+                  fontFamily: 'Inter, system-ui, sans-serif', 
+                  fontSize: '16px', 
+                  lineHeight: '1.7',
+                  minHeight: '400px'
+                }}
               />
               
               {/* Live Cursors Display */}
@@ -426,7 +435,7 @@ const DocumentPage: React.FC = () => {
                           display: 'block'
                         }}
                       >
-                        {cursor.username || 'User'}
+                        {cursor.username || cursor.user?.username || 'Anonymous'}
                       </div>
                     </div>
                   );
@@ -473,12 +482,12 @@ const DocumentPage: React.FC = () => {
                       <div className="flex items-start space-x-3">
                         <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
                           <span className="text-white text-xs font-medium">
-                            {msg.user.username.charAt(0).toUpperCase()}
+                            {(msg.user?.username || 'A').charAt(0).toUpperCase()}
                           </span>
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center space-x-2">
-                            <span className="font-medium text-gray-900 text-sm">{msg.user.username}</span>
+                            <span className="font-medium text-gray-900 text-sm">{msg.user?.username || 'Anonymous User'}</span>
                             <span className="text-xs text-gray-500">
                               {new Date(msg.created_at).toLocaleTimeString()}
                             </span>
