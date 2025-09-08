@@ -389,29 +389,41 @@ const DocumentPage: React.FC = () => {
                   ];
                   const cursorColor = colors[userColorIndex];
                   
+                  // Debug: Show cursor info
+                  if (cursor.username) {
+                    console.log('👤 Showing cursor for:', cursor.username, 'at position:', cursor.position);
+                  }
+                  
                   return (
                     <div
-                      key={cursor.userId}
-                      className="absolute transform transition-all duration-100"
+                      key={`cursor-${cursor.userId}-${cursor.timestamp}`}
+                      className="absolute transform transition-all duration-150 ease-out"
                       style={{
                         top: `${Math.max(0, top)}px`,
                         left: `${Math.max(0, left)}px`,
-                        zIndex: 25
+                        zIndex: 9999,
+                        pointerEvents: 'none'
                       }}
                     >
                       {/* Cursor line */}
-                      <div className={`w-0.5 h-6 bg-gradient-to-b ${cursorColor} animate-pulse rounded-full shadow-sm`}></div>
+                      <div className={`w-0.5 h-6 bg-gradient-to-b ${cursorColor} shadow-lg`}
+                           style={{
+                             animation: 'blink 1s infinite',
+                             boxShadow: `0 0 8px rgba(99, 102, 241, 0.4)`
+                           }}></div>
                       
                       {/* Username label - BELOW the cursor */}
                       <div 
-                        className={`absolute top-7 left-0 bg-gradient-to-r ${cursorColor} text-white text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap shadow-xl border-2 border-white`}
+                        className={`absolute top-7 left-0 bg-gradient-to-r ${cursorColor} text-white text-xs font-bold px-3 py-1 rounded-lg whitespace-nowrap shadow-xl border-2 border-white/30`}
                         style={{
                           transform: 'translateX(-50%)',
                           fontSize: '12px',
-                          fontWeight: '600',
-                          zIndex: 999,
+                          fontWeight: '700',
+                          zIndex: 9999,
                           minWidth: '60px',
-                          textAlign: 'center'
+                          textAlign: 'center',
+                          letterSpacing: '0.5px',
+                          display: 'block'
                         }}
                       >
                         {cursor.username || 'User'}
