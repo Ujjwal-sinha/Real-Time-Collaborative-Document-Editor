@@ -48,6 +48,9 @@ const supabase = createClient(
 app.use(cors());
 app.use(express.json());
 
+// Serve static files from the React app build directory
+app.use(express.static('dist'));
+
 // Simple auth routes
 app.post('/api/auth/login', async (req, res) => {
   try {
@@ -482,6 +485,11 @@ app.get('/health', (req, res) => {
     port: PORT,
     env: process.env.NODE_ENV || 'development'
   });
+});
+
+// Serve React app for all non-API routes
+app.get('*', (req, res) => {
+  res.sendFile('index.html', { root: 'dist' });
 });
 
 httpServer.listen(PORT, '0.0.0.0', () => {
