@@ -6,8 +6,11 @@ let redisClient = null;
 export const initRedis = async () => {
   if (redisClient) return redisClient;
   
+  const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
+  console.log(`🔄 Attempting to connect to Redis at: ${redisUrl.replace(/\/\/.*@/, '//***:***@')}`);
+  
   redisClient = createClient({
-    url: 'redis://127.0.0.1:6379'
+    url: redisUrl
   });
 
   redisClient.on('error', (err) => {
@@ -24,9 +27,12 @@ export const initRedis = async () => {
 
   try {
     await redisClient.connect();
+    console.log('✅ Redis connected successfully');
     return redisClient;
   } catch (error) {
-    console.log('Redis connection failed:', error.message);
+    console.log('⚠️ Redis connection failed:', error.message);
+    console.log('🔄 Application will continue without Redis caching and presence features');
+    redisClient = null;
     return null;
   }
 };
