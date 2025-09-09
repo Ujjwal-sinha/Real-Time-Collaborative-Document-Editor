@@ -9,7 +9,10 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "server": "redis-server --bind 127.0.0.1 --port 6379 --daemonize yes && node \" server/index.js\"",
-    "start": "concurrently \"npm run server\" \"npm run dev\""
+    "start": "concurrently \"npm run server\" \"npm run dev\"",
+    "start:production": "node \" server/index.js\"",
+    "build:frontend": "vite build",
+    "build": "npm run build:frontend" 
   },
   "dependencies": {
     "@lexical/history": "^0.17.1",
